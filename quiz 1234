@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Custom Quiz with Sound Feedback</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #ff0000, #ff9900, #33cc33, #3399ff, #9900cc);
+      background-size: 1000% 1000%;
+      animation: ledGlow 15s linear infinite;
+      padding: 50px;
+      color: white;
+      text-shadow: 1px 1px 3px black;
+    }
+    @keyframes ledGlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .quiz-container {
+      background-color: rgba(0, 0, 0, 0.8);
+      padding: 30px;
+      border-radius: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+    button, input[type="number"] {
+      padding: 10px 20px;
+      margin: 10px 5px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+    }
+    button {
+      text-align: left;
+    }
+    .correct { background-color: #4CAF50; color: white; }
+    .wrong { background-color: #f44336; color: white; }
+    #startBtn, #restartBtn, #prevBtn, #skipBtn {
+      background-color: #2196F3;
+      color: white;
+    }
+    #nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="quiz-container" id="quiz">
+    <label for="questionCount">Enter number of questions:</label>
+    <input type="number" id="questionCount" min="1" max="50" value="10">
+    <button id="startBtn">Start Quiz</button>
+    <h2 id="question" style="display:none;">Loading...</h2>
+    <div id="options"></div>
+    <div id="nav-buttons" style="display:none;">
+      <button id="prevBtn">Previous Question</button>
+      <button id="skipBtn">Skip Question</button>
+    </div>
+    <button id="restartBtn" style="display:none;">Restart Quiz</button>
+  </div>
+
+  <audio id="correctSound" preload="auto">
+    <source src="https://cdn.pixabay.com/audio/2023/10/05/audio_0d66adab17.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="wrongSound" preload="auto">
+    <source src="https://cdn.pixabay.com/audio/2023/07/17/audio_9c7ae7fc2b.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    let allQuestions = [
+      { question: "Which group of components would you expect to be wired together in parallel?", options: ["switch, ignition transformer, motor", "gas valve, ignition transformer, motor", "motor motor, flame sensor, high limit switch", "high limit, motor"], answer: "gas valve, ignition transformer, motor" },
+      { question: "A loosely wound coil creates a stronger magnetic field.", options: ["True", "False"], answer: "False" },
+      { question: "The ease with which a material accepts magnetic lines of force is called:", options: ["permeability", "flux density", "none of the choices", "ferromagnetic"], answer: "permeability" },
+      { question: "The law of attraction and repulsion confirms that:", options: ["opposites repel and similar attract", "none of the choices", "like charges attract and unlike charges repel", "like charges repel and unlike charges attract"], answer: "like charges repel and unlike charges attract" },
+      { question: "Ignition transformers deliver a voltage of:", options: ["20000 volts", "15000 volts", "8000 volts", "10,000 volts"], answer: "10,000 volts" },
+      { question: "Cycles per second refers to the:", options: ["DC only", "current", "frequency", "voltage"], answer: "frequency" },
+      { question: "Ground wires in a circuit are:", options: ["all of the choices", "black", "white", "green"], answer: "green" },
+      { question: "In a three phase circuit, each of the circuits are displaced by:", options: ["220 degrees", "347 degrees", "120 degrees", "90 degrees"], answer: "120 degrees" },
+      { question: "Name 3 naturally occurring ferromagnetic metals:", options: ["nickel, iron, cobalt", "cobalt, steel, iron", "steel, copper, nickel", "iron, nickel, copper"], answer: "nickel, iron, cobalt" },
+      { question: "Which type of current flows in both directions?", options: ["alternating current", "AC/DC", "all of the choices", "direct current"], answer: "alternating current" }
+    ];
+
+    while (allQuestions.length < 50) {
+      allQuestions = allQuestions.concat(allQuestions.map(q => ({ ...q })));
+    }
+
+    let questions = [];
+    let currentQuestion = 0;
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+      document.getElementById('startBtn').style.display = 'none';
+      document.getElementById('question').style.display = 'block';
+      document.getElementById('nav-buttons').style.display = 'flex';
+      document.getElementById('restartBtn').style.display = 'none';
+      startQuiz();
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      location.reload();
+    });
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if (currentQuestion > 0) {
+        currentQuestion--;
+        loadQuestion();
+      }
+    });
+
+    document.getElementById('skipBtn').addEventListener('click', skipQuestion);
+
+    document.addEventListener('keydown', function (event) {
+  if (event.key === 'Enter') {
+    const startBtn = document.getElementById('startBtn');
+    if (startBtn.style.display !== 'none') {
+      startBtn.click();
+    } else {
+      skipQuestion();
+    }
+  }
+});
+
+    function skipQuestion() {
+      if (currentQuestion < questions.length - 1) {
+        currentQuestion++;
+        loadQuestion();
+      } else {
+        showCompletion();
+      }
+    }
+
+    function startQuiz() {
+      const input = document.getElementById('questionCount');
+      let count = parseInt(input.value);
+      if (isNaN(count) || count < 1) count = 1;
+      if (count > allQuestions.length) count = allQuestions.length;
+      questions = [...allQuestions].sort(() => 0.5 - Math.random()).slice(0, count);
+      currentQuestion = 0;
+      loadQuestion();
+    }
+
+    function loadQuestion() {
+      const q = questions[currentQuestion];
+      document.getElementById("question").innerText = `Question #${currentQuestion + 1}: ${q.question}`;
+      const optionsDiv = document.getElementById("options");
+      optionsDiv.innerHTML = "";
+      q.options.forEach(option => {
+        const btn = document.createElement("button");
+        btn.innerText = option;
+        btn.onclick = () => checkAnswer(btn, option);
+        optionsDiv.appendChild(btn);
+      });
+    }
+
+    function checkAnswer(button, selected) {
+      const q = questions[currentQuestion];
+      const correctSound = document.getElementById("correctSound");
+      const wrongSound = document.getElementById("wrongSound");
+
+      if (selected === q.answer) {
+        button.classList.add("correct");
+        correctSound.currentTime = 0;
+        correctSound.play().catch(e => console.log("Play error:", e));
+      } else {
+        button.classList.add("wrong");
+        wrongSound.currentTime = 0;
+        wrongSound.play().catch(e => console.log("Play error:", e));
+      }
+
+      setTimeout(() => {
+        currentQuestion++;
+        if (currentQuestion < questions.length) {
+          loadQuestion();
+        } else {
+          showCompletion();
+        }
+      }, 1000);
+    }
+
+    function showCompletion() {
+      document.getElementById("quiz").innerHTML = `<h2>Quiz Completed!</h2>
+        <button id='restartBtn' onclick='location.reload()'>Restart Quiz</button>`;
+    }
+  </script>
+</body>
+</html>
